@@ -11,27 +11,35 @@ import UIKit
 import simd
 import SwiftUI
 
+// Stores the marble's current hex coordinates
 struct MarbleComponent: Component {
     var q: Int
     var r: Int
 }
 
 enum BoardRenderer {
+
+    // MARK: - Main entry: build board + initial marble
+
     static func makeBoardAnchor(at worldTransform: simd_float4x4,
                                 config: BoardConfig) -> AnchorEntity {
         // Texture + material
         let img = BoardTextureHex.makeHexBoardImage(config: config)
         var material = UnlitMaterial()
+
         if let cg = img.cgImage,
-           let tex = try? TextureResource(image: cg, options: .init(semantic: .color)) {
+           let tex = try? TextureResource(image: cg,
+                                          options: .init(semantic: .color)) {
             material.baseColor = .texture(tex)
         } else {
             material.baseColor = .color(.init(.white))
         }
 
         // Flat plane
-        let mesh = MeshResource.generatePlane(width: config.boardSizeMeters,
-                                              depth: config.boardSizeMeters)
+        let mesh = MeshResource.generatePlane(
+            width: config.boardSizeMeters,
+            depth: config.boardSizeMeters
+        )
         let board = ModelEntity(mesh: mesh, materials: [material])
         board.generateCollisionShapes(recursive: false)
         board.position.y = 0.001   // tiny lift above detected plane
@@ -40,71 +48,60 @@ enum BoardRenderer {
         let anchor = AnchorEntity(world: worldTransform)
         anchor.addChild(board)
 
-        // ----- MARBLE -----
-        // create marble model
-        let marble = makeMarbleEntity(config: config)
+        // ----- Marble on a hex -----
+        let startQ = 0
+        let startR = 0
 
-        // compute marble radius again to position it correctly on top
-        let marbleRadius = marbleRadiusMeters(config: config)
-
-        // choose which hex to use (axial coordinates q, r)
-        // (0, 0) = center hex. Change this to e.g. (0, config.hexRadiusCells) for center of one edge.
-        let centerHexQ = 0
-        let centerHexR = 0
-
-        let centerXZ = hexCenterLocalXZ(q: centerHexQ, r: centerHexR, config: config)
+        let marble = makeMarbleEntity(config: config, q: startQ, r: startR)
+        let centerXZ = hexCenterLocalXZ(q: startQ, r: startR, config: config)
+        let radius = marbleRadiusMeters(config: config)
 
         marble.position = SIMD3<Float>(
             centerXZ.x,
-            marbleRadius + 0.001,      // sits on top of the board
-            centerXZ.y                  // use the second component as Z
+            radius + 0.001,
+            centerXZ.y
         )
-
+        marble.name = "marble"
         anchor.addChild(marble)
-        // -------------------
+        // ---------------------------
 
         return anchor
     }
 
     // MARK: - Marble creation & sizing
 
-    private static func marbleRadiusMeters(config: BoardConfig) -> Float {
-        // how many meters one texture pixel represents
+    static func marbleRadiusMeters(config: BoardConfig) -> Float {
         let metersPerPixel = config.boardSizeMeters / Float(config.textureSize)
-
-        // hex flat-to-flat in pixels (pointy-top): √3 * a
         let hexFlatToFlat_px = Float(config.hexPixelRadius) * sqrtf(3)
-
-        // target marble diameter slightly smaller than hex inner circle
         let marbleDiameter_m = hexFlatToFlat_px * metersPerPixel * config.marbleToHexScale
         return marbleDiameter_m / 2
     }
 
-    private static func makeMarbleEntity(config: BoardConfig) -> ModelEntity {
+    private static func makeMarbleEntity(config: BoardConfig,
+                                         q: Int,
+                                         r: Int) -> ModelEntity {
         let radius = marbleRadiusMeters(config: config)
-
-        // Sphere mesh
         let sphere = MeshResource.generateSphere(radius: radius)
 
         var mat = SimpleMaterial()
-        mat.baseColor = .color(.init(.blue))
+        mat.baseColor = .color(.init(.blue))   // 👈 blue by default
         mat.roughness = 0.15
 
         let marble = ModelEntity(mesh: sphere, materials: [mat])
         marble.generateCollisionShapes(recursive: false)
+        marble.components.set(MarbleComponent(q: q, r: r))
         return marble
     }
 
-    // MARK: - Hex coord → local board position
+    // MARK: - Hex coord → local board position (x,z)
 
-    /// Returns the local (x, z) position on the board plane for a hex with axial coordinates (q, r).
-    /// This mirrors the pointy-top axial layout used when drawing the texture.
-    private static func hexCenterLocalXZ(q: Int, r: Int, config: BoardConfig) -> SIMD2<Float> {
-        let a = config.hexPixelRadius            // hex size in *texture pixels*
-        let R = config.hexRadiusCells
+    static func hexCenterLocalXZ(q: Int,
+                                 r: Int,
+                                 config: BoardConfig) -> SIMD2<Float> {
         let texSize = CGFloat(config.textureSize)
+        let a = config.hexPixelRadius
+        let R = config.hexRadiusCells
 
-        // axial (q, r) -> pixel (x, y) in texture space, before centering
         func axialToPixel(_ q: Int, _ r: Int) -> CGPoint {
             let qf = CGFloat(q), rf = CGFloat(r)
             let x = a * sqrt(3) * (qf + rf/2.0)
@@ -112,7 +109,7 @@ enum BoardRenderer {
             return CGPoint(x: x, y: y)
         }
 
-        // Compute bounds of all hex centers to know how to center them in the texture
+        // centers of all hexes to compute centering offset
         var centers: [CGPoint] = []
         for qVal in -R...R {
             let r1 = max(-R, -qVal - R)
@@ -130,24 +127,75 @@ enum BoardRenderer {
         let contentW = maxX - minX
         let contentH = maxY - minY
 
-        // same centering logic as texture: put the grid in the middle of the image
         let offset = CGPoint(
             x: (texSize - contentW)/2.0 - minX,
             y: (texSize - contentH)/2.0 - minY
         )
 
-        // pixel position of this hex in the texture
         let p = axialToPixel(q, r)
         let centered = CGPoint(x: p.x + offset.x, y: p.y + offset.y)
 
-        // convert texture pixels -> board local meters.
-        // texture (0 .. texSize) maps to board (-boardSize/2 .. +boardSize/2)
-        let nx = (centered.x / texSize) - 0.5      // -0.5 .. +0.5
+        // map texture (0..texSize) → board (-boardSize/2 .. +boardSize/2)
+        let nx = (centered.x / texSize) - 0.5
         let nz = (centered.y / texSize) - 0.5
 
         let xMeters = Float(nx) * config.boardSizeMeters
         let zMeters = Float(nz) * config.boardSizeMeters
 
         return SIMD2<Float>(xMeters, zMeters)
+    }
+
+    // MARK: - local (x,z) → nearest hex axial (q,r)
+
+    static func localPositionToHex(x: Float,
+                                   z: Float,
+                                   config: BoardConfig) -> (q: Int, r: Int) {
+        let metersPerPixel = config.boardSizeMeters / Float(config.textureSize)
+        let aMeters = metersPerPixel * Float(config.hexPixelRadius)
+
+        // continuous axial coords (see redblobgames)
+        let qf = (sqrtf(3) / 3 * x - 1.0 / 3 * z) / aMeters
+        let rf = (2.0 / 3 * z) / aMeters
+
+        // cube coords for rounding
+        let xf = qf
+        let zf = rf
+        let yf = -xf - zf
+
+        var rx = roundf(xf)
+        var ry = roundf(yf)
+        var rz = roundf(zf)
+
+        let xDiff = fabsf(rx - xf)
+        let yDiff = fabsf(ry - yf)
+        let zDiff = fabsf(rz - zf)
+
+        if xDiff > yDiff && xDiff > zDiff {
+            rx = -ry - rz
+        } else if yDiff > zDiff {
+            ry = -rx - rz
+        } else {
+            rz = -rx - ry
+        }
+
+        let q = Int(rx)
+        let r = Int(rz)
+        return (q, r)
+    }
+
+    static func isValidHex(q: Int, r: Int, config: BoardConfig) -> Bool {
+        let R = config.hexRadiusCells
+        let s = -q - r
+        return abs(q) <= R && abs(r) <= R && abs(s) <= R
+    }
+
+    static func isNeighbor(from: (Int, Int), to: (Int, Int)) -> Bool {
+        let (q0, r0) = from
+        let (q1, r1) = to
+        let dq = q1 - q0
+        let dr = r1 - r0
+        let ds = -(dq + dr)
+        let dist = max(abs(dq), max(abs(dr), abs(ds)))
+        return dist == 1
     }
 }
