@@ -47,24 +47,16 @@ enum BoardRenderer {
         // Anchor at raycast
         let anchor = AnchorEntity(world: worldTransform)
         anchor.addChild(board)
+        // Spawn starting marbles
+        for hex in startingHexes(for: .red, config: config) {
+            let model = MarbleModel(player: .red, hex: hex)
+            _ = spawnMarble(model: model, config: config, parent: anchor)
+        }
 
-        // ----- Marble on a hex -----
-        let startQ = 0
-        let startR = 0
-
-        let marble = makeMarbleEntity(config: config, q: startQ, r: startR)
-        let centerXZ = hexCenterLocalXZ(q: startQ, r: startR, config: config)
-        let radius = marbleRadiusMeters(config: config)
-
-        marble.position = SIMD3<Float>(
-            centerXZ.x,
-            radius + 0.001,
-            centerXZ.y
-        )
-        marble.name = "marble"
-        anchor.addChild(marble)
-        // ---------------------------
-
+        for hex in startingHexes(for: .blue, config: config) {
+            let model = MarbleModel(player: .blue, hex: hex)
+            _ = spawnMarble(model: model, config: config, parent: anchor)
+        }
         return anchor
     }
 
@@ -92,6 +84,36 @@ enum BoardRenderer {
         marble.components.set(MarbleComponent(q: q, r: r))
         return marble
     }
+    
+    static func spawnMarble(
+        model: MarbleModel,
+        config: BoardConfig,
+        parent: Entity
+    ) -> ModelEntity {
+
+        let marble = MarbleFactory.makeMarble(
+            model: model,
+            config: config
+        )
+
+        let centerXZ = hexCenterLocalXZ(
+            q: model.hex.q,
+            r: model.hex.r,
+            config: config
+        )
+
+        let radius = marbleRadiusMeters(config: config)
+
+        marble.position = SIMD3<Float>(
+            centerXZ.x,
+            radius + 0.001,
+            centerXZ.y
+        )
+
+        parent.addChild(marble)
+        return marble
+    }
+
 
     // MARK: - Hex coord → local board position (x,z)
 
@@ -197,5 +219,70 @@ enum BoardRenderer {
         let ds = -(dq + dr)
         let dist = max(abs(dq), max(abs(dr), abs(ds)))
         return dist == 1
+    }
+}
+func isEdgeHex(q: Int, r: Int, config: BoardConfig) -> Bool {
+    let R = config.hexRadiusCells
+    let s = -q - r
+    return abs(q) == R || abs(r) == R || abs(s) == R
+}
+func edgeHexes(config: BoardConfig) -> [HexCoordinate] {
+    let R = config.hexRadiusCells
+    var result: [HexCoordinate] = []
+
+    for q in -R...R {
+        let r1 = max(-R, -q - R)
+        let r2 = min(R, -q + R)
+        for r in r1...r2 {
+            if isEdgeHex(q: q, r: r, config: config) {
+                result.append(HexCoordinate(q: q, r: r))
+            }
+        }
+    }
+
+    return result
+}
+func startingHexes(
+    for player: Player,
+    config: BoardConfig
+) -> [HexCoordinate] {
+
+    let edges = edgeHexes(config: config)
+
+    let sortedByZ = edges.sorted {
+        let z0 = BoardRenderer.hexCenterLocalXZ(q: $0.q, r: $0.r, config: config).y
+        let z1 = BoardRenderer.hexCenterLocalXZ(q: $1.q, r: $1.r, config: config).y
+        return z0 < z1
+    }
+
+    if player == .blue {
+        // bottom edge → lowest Z
+        return Array(sortedByZ.prefix(5))
+    } else {
+        // top edge → highest Z
+        return Array(sortedByZ.suffix(5))
+    }
+}
+
+
+func angleForHex(
+    _ hex: HexCoordinate,
+    config: BoardConfig
+) -> Float {
+
+    let pos = BoardRenderer.hexCenterLocalXZ(
+        q: hex.q,
+        r: hex.r,
+        config: config
+    )
+
+    return atan2(pos.y, pos.x) // angle around center
+}
+func edgeHexesSorted(config: BoardConfig) -> [HexCoordinate] {
+    let edges = edgeHexes(config: config)
+
+    return edges.sorted {
+        angleForHex($0, config: config) <
+        angleForHex($1, config: config)
     }
 }
