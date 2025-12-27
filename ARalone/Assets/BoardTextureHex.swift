@@ -14,7 +14,9 @@ enum BoardTextureHex {
     /// Creates a square image with a centered hexagonal *board area*
     /// filled by white hex tiles outlined in black. Background is white,
     /// so it looks like white tiles with black borders (no color fill).
-    static func makeHexBoardImage(config: BoardConfig) -> UIImage {
+    ///
+    @MainActor
+    static func makeHexBoardImage(config: BoardConfig, claimedHexes: [HexCoordinate: Player] ) -> UIImage {
         let size = CGSize(width: config.textureSize, height: config.textureSize)
         let a = config.hexPixelRadius
         let R = config.hexRadiusCells
@@ -90,11 +92,26 @@ enum BoardTextureHex {
                 let r1 = max(-R, -q - R)
                 let r2 = min(R, -q + R)
                 for r in r1...r2 {
+
+                    let hex = HexCoordinate(q: q, r: r)
+
                     let c = axialToPixel(q: q, r: r)
                     let center = CGPoint(x: c.x + offset.x, y: c.y + offset.y)
                     let path = hexPath(center: center, radius: drawRadius)
                     path.lineWidth = lineW
+
+                    // 1️⃣ base fill (white)
+                    UIColor.white.setFill()
                     path.fill()
+
+                    // 2️⃣ ownership fill (if any)
+                    if let owner = claimedHexes[hex] {
+                        owner.color.setFill()
+                        path.fill()
+                    }
+
+                    // 3️⃣ outline
+                    UIColor.black.setStroke()
                     path.stroke()
                 }
             }

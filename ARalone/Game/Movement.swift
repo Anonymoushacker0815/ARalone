@@ -37,10 +37,8 @@ extension GameState {
             to: (target.q, target.r)
         ) else { return false }
 
-        // 4. Claim the hex we are leaving (only once)
-        if claimedHexes[from] == nil {
-            claimedHexes[from] = currentPlayer
-        }
+        // 4. Claim / recolor the hex we are leaving
+        claimedHexes[from] = movingPlayer
 
         // 5. Move marble (NOW this is legal)
         marbles[index].hex = target

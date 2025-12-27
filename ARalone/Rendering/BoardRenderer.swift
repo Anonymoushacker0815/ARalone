@@ -20,7 +20,10 @@ struct MarbleComponent: Component {
 enum BoardRenderer {
     
     static func makeBoardEntity(config: BoardConfig) -> ModelEntity {
-        let img = BoardTextureHex.makeHexBoardImage(config: config)
+        let img = BoardTextureHex.makeHexBoardImage(
+            config: config,
+            claimedHexes: [:]
+        )
         var material = UnlitMaterial()
 
         if let cg = img.cgImage,

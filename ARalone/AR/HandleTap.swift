@@ -148,10 +148,32 @@ extension ARViewContainer.Coordinator {
             MarbleComponent(q: targetHex.q, r: targetHex.r)
         )
 
-        // TODO: update board texture using gameState.claimedHexes
+        updateBoardTexture(config: config)
     }
 
     // MARK: - Selection cleanup
+    @MainActor
+    func updateBoardTexture(config: BoardConfig) {
+        print("updateBoardTexture called, boardEntity =", boardEntity as Any)
+        guard let boardEntity else { return }
+
+        let img = BoardTextureHex.makeHexBoardImage(
+            config: config,
+            claimedHexes: gameState.claimedHexes
+        )
+
+        guard let cg = img.cgImage,
+              let tex = try? TextureResource(
+                image: cg,
+                options: .init(semantic: .color)
+              )
+        else { return }
+
+        var material = UnlitMaterial()
+        material.baseColor = .texture(tex)
+
+        boardEntity.model?.materials = [material]
+    }
 
     private func restoreSelection() {
         if let selected = selectedMarble,

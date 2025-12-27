@@ -53,6 +53,8 @@ struct ARViewContainer: UIViewRepresentable {
         // selection state
         var selectedMarble: ModelEntity?
         var originalMaterial: SimpleMaterial?
+        
+        var boardEntity: ModelEntity?
 
         func placeBoard(at screenPoint: CGPoint) {
             guard let arView else { return }
@@ -96,9 +98,11 @@ struct ARViewContainer: UIViewRepresentable {
                 )
             }
 
-            // Create and add the board itself
-            let boardEntity = BoardRenderer.makeBoardEntity(config: config)
-            anchor.addChild(boardEntity)
+            let board = BoardRenderer.makeBoardEntity(config: config)
+            anchor.addChild(board)
+
+            // ✅ STORE IT ON THE COORDINATOR
+            self.boardEntity = board
 
             arView.scene.addAnchor(anchor)
             boardAnchor = anchor
