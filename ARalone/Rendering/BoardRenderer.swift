@@ -11,11 +11,17 @@ import UIKit
 import simd
 import SwiftUI
 
-// Stores the marble's current hex coordinates
 struct MarbleComponent: Component {
     var q: Int
     var r: Int
+    var playerRaw: Int  // 0 = red, 1 = blue
 }
+extension MarbleComponent {
+    var player: Player {
+        playerRaw == 0 ? .red : .blue
+    }
+}
+
 
 enum BoardRenderer {
     
@@ -56,22 +62,6 @@ enum BoardRenderer {
         let marbleDiameter_m = hexFlatToFlat_px * metersPerPixel * config.marbleToHexScale
         return marbleDiameter_m / 2
     }
-
-    private static func makeMarbleEntity(config: BoardConfig,
-                                         q: Int,
-                                         r: Int) -> ModelEntity {
-        let radius = marbleRadiusMeters(config: config)
-        let sphere = MeshResource.generateSphere(radius: radius)
-
-        var mat = SimpleMaterial()
-        mat.baseColor = .color(.init(.blue))   // 👈 blue by default
-        mat.roughness = 0.15
-
-        let marble = ModelEntity(mesh: sphere, materials: [mat])
-        marble.generateCollisionShapes(recursive: false)
-        marble.components.set(MarbleComponent(q: q, r: r))
-        return marble
-    }
     
     static func spawnMarble(
         model: MarbleModel,
@@ -96,6 +86,13 @@ enum BoardRenderer {
             centerXZ.x,
             radius + 0.001,
             centerXZ.y
+        )
+        marble.components.set(
+            MarbleComponent(
+                q: model.hex.q,
+                r: model.hex.r,
+                playerRaw: (model.player == .red ? 0 : 1)
+            )
         )
 
         parent.addChild(marble)

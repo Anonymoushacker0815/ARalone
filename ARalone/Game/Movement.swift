@@ -26,10 +26,7 @@ extension GameState {
         // 1. Must be current player's marble
         guard movingPlayer == currentPlayer else { return false }
 
-        // 2. Target must be empty
-        guard isHexEmpty(target) else { return false }
-
-        // 3. Must be valid & adjacent
+        // 2. Must be valid & adjacent
         guard BoardRenderer.isValidHex(q: target.q, r: target.r, config: config) else { return false }
 
         guard BoardRenderer.isNeighbor(
@@ -37,15 +34,83 @@ extension GameState {
             to: (target.q, target.r)
         ) else { return false }
 
-        // 4. Claim / recolor the hex we are leaving
-        claimedHexes[from] = movingPlayer
+        // 3. Target occupied? → attempt push
+        if let defenderIndex = marbles.firstIndex(where: { $0.hex == target }) {
+            return attemptPush(
+                attackerIndex: index,
+                defenderIndex: defenderIndex,
+                target: target,
+                config: config
+            )
+        }
 
-        // 5. Move marble (NOW this is legal)
+        // 4. Move marble
         marbles[index].hex = target
+
+        // 5. Claim / recolor the hex we moved onto
+        claimedHexes[target] = movingPlayer
 
         // 6. Switch turn
         switchTurn()
 
+        return true
+    }
+    func attemptPush(
+        attackerIndex: Int,
+        defenderIndex: Int,
+        target: HexCoordinate,
+        config: BoardConfig
+    ) -> Bool {
+
+        let attacker = marbles[attackerIndex]
+        let defender = marbles[defenderIndex]
+
+        // Must be opposing players
+        guard attacker.player != defender.player else { return false }
+
+        // Determine push direction
+        guard let direction = HexDirection.fromMove(
+            from: attacker.hex,
+            to: defender.hex
+        ) else { return false }
+
+        // Opposite direction (behind attacker)
+        let opposite = HexDirection.fromMove(
+            from: defender.hex,
+            to: attacker.hex
+        )!
+
+        // Count strength
+        let attackerStrength = countOwnedHexes(
+            from: attacker.hex,
+            direction: opposite,
+            owner: attacker.player
+        )
+
+        let defenderStrength = countOwnedHexes(
+            from: defender.hex,
+            direction: direction,
+            owner: defender.player
+        )
+
+        // Defender wins ties
+        guard attackerStrength > defenderStrength else {
+            return false
+        }
+
+        marbles.remove(at: defenderIndex)
+
+        // Adjust attacker index if needed
+        let adjustedAttackerIndex =
+            defenderIndex < attackerIndex ? attackerIndex - 1 : attackerIndex
+
+        // Move attacker
+        marbles[adjustedAttackerIndex].hex = target
+
+        // Claim / recolor the hex attacker moved onto
+        claimedHexes[target] = attacker.player
+
+        switchTurn()
         return true
     }
 }

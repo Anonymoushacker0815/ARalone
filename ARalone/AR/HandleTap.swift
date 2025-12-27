@@ -23,11 +23,19 @@ extension ARViewContainer.Coordinator {
             return
         }
 
-        // 2) Tap on a marble → select / deselect
+        // 2) Tap on a marble
         if let entity = arView.entity(at: location),
            let marble = entity as? ModelEntity,
            let marbleComp = marble.components[MarbleComponent.self] as? MarbleComponent {
-            handleMarbleTap(marble, marbleComp: marbleComp)
+
+            // If no marble selected yet → attempt selection
+            if selectedMarble == nil {
+                handleMarbleTap(marble, marbleComp: marbleComp)
+                return
+            }
+
+            // If a marble is already selected → treat as move attempt
+            handleMoveTap(at: location)
             return
         }
 
@@ -41,6 +49,10 @@ extension ARViewContainer.Coordinator {
         _ marble: ModelEntity,
         marbleComp: MarbleComponent
     ) {
+        // Only allow selecting current player's marble
+        guard marbleComp.player == gameState.currentPlayer else {
+            return
+        }
         // Tapped the already-selected marble → deselect
         if let selected = selectedMarble, selected.id == marble.id {
             restoreSelection()
@@ -120,7 +132,9 @@ extension ARViewContainer.Coordinator {
         guard let idx = gameState.marbles.firstIndex(
             where: { $0.hex == fromHex }
         ) else { return }
-
+        
+        let marbleCountBefore = gameState.marbles.count
+        
         let moved = gameState.moveMarble(
             at: idx,
             to: targetHex,
@@ -128,8 +142,14 @@ extension ARViewContainer.Coordinator {
         )
 
         guard moved else { return }
+        
+        let marbleCountAfter = gameState.marbles.count
+        let pushHappened = marbleCountAfter < marbleCountBefore
 
-        // Animate / update position
+        if pushHappened {
+            removeDefenderEntity(at: targetHex)
+        }
+
         let centerXZ = BoardRenderer.hexCenterLocalXZ(
             q: targetHex.q,
             r: targetHex.r,
@@ -145,13 +165,30 @@ extension ARViewContainer.Coordinator {
         )
 
         selected.components.set(
-            MarbleComponent(q: targetHex.q, r: targetHex.r)
+            MarbleComponent(
+                q: targetHex.q,
+                r: targetHex.r,
+                playerRaw: marbleComp.playerRaw
+            )
         )
 
         updateBoardTexture(config: config)
     }
+    private func removeDefenderEntity(at hex: HexCoordinate) {
+        guard let boardAnchor else { return }
 
-    // MARK: - Selection cleanup
+        for child in boardAnchor.children {
+            guard let marble = child as? ModelEntity,
+                  let comp = marble.components[MarbleComponent.self] as? MarbleComponent
+            else { continue }
+
+            if comp.q == hex.q && comp.r == hex.r {
+                marble.removeFromParent()
+                return
+            }
+        }
+    }
+
     @MainActor
     func updateBoardTexture(config: BoardConfig) {
         print("updateBoardTexture called, boardEntity =", boardEntity as Any)

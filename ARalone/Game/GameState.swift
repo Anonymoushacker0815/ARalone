@@ -26,4 +26,26 @@ final class GameState {
     func switchTurn() {
         currentPlayer = (currentPlayer == .red) ? .blue : .red
     }
+    func countOwnedHexes(
+        from start: HexCoordinate,
+        direction: HexDirection,
+        owner: Player
+    ) -> Int {
+
+        var count = 0
+        var current = HexCoordinate(
+            q: start.q + direction.dq,
+            r: start.r + direction.dr
+        )
+
+        while claimedHexes[current] == owner {
+            count += 1
+            current = HexCoordinate(
+                q: current.q + direction.dq,
+                r: current.r + direction.dr
+            )
+        }
+
+        return count
+    }
 }

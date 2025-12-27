@@ -24,9 +24,12 @@ enum MarbleFactory {
         let entity = ModelEntity(mesh: mesh, materials: [material])
         entity.generateCollisionShapes(recursive: false)
 
-        // Store hex position for interaction
         entity.components.set(
-            MarbleComponent(q: model.hex.q, r: model.hex.r)
+            MarbleComponent(
+                q: model.hex.q,
+                r: model.hex.r,
+                playerRaw: (model.player == .red ? 0 : 1)
+            )
         )
 
         entity.name = "marble"

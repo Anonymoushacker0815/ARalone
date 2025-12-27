@@ -78,6 +78,8 @@ struct ARViewContainer: UIViewRepresentable {
             for hex in startingHexes(for: .red, config: config) {
                 let model = MarbleModel(player: .red, hex: hex)
                 gameState.marbles.append(model)
+                
+                gameState.claimedHexes[hex] = .red
 
                 _ = BoardRenderer.spawnMarble(
                     model: model,
@@ -90,7 +92,9 @@ struct ARViewContainer: UIViewRepresentable {
             for hex in startingHexes(for: .blue, config: config) {
                 let model = MarbleModel(player: .blue, hex: hex)
                 gameState.marbles.append(model)
-
+                
+                gameState.claimedHexes[hex] = .blue
+                
                _ = BoardRenderer.spawnMarble(
                     model: model,
                     config: config,
@@ -101,12 +105,13 @@ struct ARViewContainer: UIViewRepresentable {
             let board = BoardRenderer.makeBoardEntity(config: config)
             anchor.addChild(board)
 
-            // ✅ STORE IT ON THE COORDINATOR
             self.boardEntity = board
 
             arView.scene.addAnchor(anchor)
             boardAnchor = anchor
+            
+            updateBoardTexture(config: config)
         }
-
     }
 }
+
