@@ -18,47 +18,32 @@ struct MarbleComponent: Component {
 }
 
 enum BoardRenderer {
-
-    // MARK: - Main entry: build board + initial marble
-
-    static func makeBoardAnchor(at worldTransform: simd_float4x4,
-                                config: BoardConfig) -> AnchorEntity {
-        // Texture + material
+    
+    static func makeBoardEntity(config: BoardConfig) -> ModelEntity {
         let img = BoardTextureHex.makeHexBoardImage(config: config)
         var material = UnlitMaterial()
 
         if let cg = img.cgImage,
-           let tex = try? TextureResource(image: cg,
-                                          options: .init(semantic: .color)) {
+           let tex = try? TextureResource(
+            image: cg,
+            options: .init(semantic: .color)
+           ) {
             material.baseColor = .texture(tex)
         } else {
             material.baseColor = .color(.init(.white))
         }
 
-        // Flat plane
         let mesh = MeshResource.generatePlane(
             width: config.boardSizeMeters,
             depth: config.boardSizeMeters
         )
+
         let board = ModelEntity(mesh: mesh, materials: [material])
         board.generateCollisionShapes(recursive: false)
-        board.position.y = 0.001   // tiny lift above detected plane
-
-        // Anchor at raycast
-        let anchor = AnchorEntity(world: worldTransform)
-        anchor.addChild(board)
-        // Spawn starting marbles
-        for hex in startingHexes(for: .red, config: config) {
-            let model = MarbleModel(player: .red, hex: hex)
-            _ = spawnMarble(model: model, config: config, parent: anchor)
-        }
-
-        for hex in startingHexes(for: .blue, config: config) {
-            let model = MarbleModel(player: .blue, hex: hex)
-            _ = spawnMarble(model: model, config: config, parent: anchor)
-        }
-        return anchor
+        board.position.y = 0.001
+        return board
     }
+
 
     // MARK: - Marble creation & sizing
 

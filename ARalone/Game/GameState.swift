@@ -8,9 +8,8 @@
 final class GameState {
 
     var currentPlayer: Player = .red
-
-    // Which hex is occupied by which marble
     var marbles: [MarbleModel] = []
+    var claimedHexes: [HexCoordinate: Player] = [:]
 
     func marble(at hex: HexCoordinate) -> MarbleModel? {
         marbles.first { $0.hex == hex }
@@ -19,7 +18,11 @@ final class GameState {
     func isHexEmpty(_ hex: HexCoordinate) -> Bool {
         marble(at: hex) == nil
     }
-
+    
+    func claimHex(_ hex: HexCoordinate, for player: Player) {
+            claimedHexes[hex] = player
+        }
+    
     func switchTurn() {
         currentPlayer = (currentPlayer == .red) ? .blue : .red
     }
