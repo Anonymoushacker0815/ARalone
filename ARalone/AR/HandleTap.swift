@@ -133,8 +133,6 @@ extension ARViewContainer.Coordinator {
             where: { $0.hex == fromHex }
         ) else { return }
         
-        let marbleCountBefore = gameState.marbles.count
-        
         let moved = gameState.moveMarble(
             at: idx,
             to: targetHex,
@@ -142,12 +140,18 @@ extension ARViewContainer.Coordinator {
         )
 
         guard moved else { return }
-        
-        let marbleCountAfter = gameState.marbles.count
-        let pushHappened = marbleCountAfter < marbleCountBefore
 
-        if pushHappened {
-            removeDefenderEntity(at: targetHex)
+        if let delta = gameState.lastPushDelta {
+            if let removedHex = delta.removedHex {
+                removeDefenderEntity(at: removedHex)
+            } else if let moved = delta.movedDefender {
+                moveDefenderEntity(
+                    from: moved.from,
+                    to: moved.to,
+                    player: moved.player,
+                    config: config
+                )
+            }
         }
 
         let centerXZ = BoardRenderer.hexCenterLocalXZ(
@@ -220,4 +224,45 @@ extension ARViewContainer.Coordinator {
         selectedMarble = nil
         originalMaterial = nil
     }
+    private func moveDefenderEntity(
+        from: HexCoordinate,
+        to: HexCoordinate,
+        player: Player,
+        config: BoardConfig
+    ) {
+        guard let boardAnchor else { return }
+
+        for child in boardAnchor.children {
+            guard let marble = child as? ModelEntity,
+                  let comp = marble.components[MarbleComponent.self] as? MarbleComponent
+            else { continue }
+
+            if comp.q == from.q && comp.r == from.r && comp.player == player {
+
+                let centerXZ = BoardRenderer.hexCenterLocalXZ(
+                    q: to.q,
+                    r: to.r,
+                    config: config
+                )
+
+                let radius = BoardRenderer.marbleRadiusMeters(config: config)
+
+                marble.position = SIMD3<Float>(
+                    centerXZ.x,
+                    radius + 0.001,
+                    centerXZ.y
+                )
+
+                marble.components.set(
+                    MarbleComponent(
+                        q: to.q,
+                        r: to.r,
+                        playerRaw: comp.playerRaw
+                    )
+                )
+                return
+            }
+        }
+    }
 }
+

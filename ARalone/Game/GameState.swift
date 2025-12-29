@@ -6,10 +6,17 @@
 //
 
 final class GameState {
-
+    
+    struct PushDelta {
+            var removedHex: HexCoordinate? = nil
+            var movedDefender: (from: HexCoordinate, to: HexCoordinate, player: Player)? = nil
+        }
+    
     var currentPlayer: Player = .red
     var marbles: [MarbleModel] = []
     var claimedHexes: [HexCoordinate: Player] = [:]
+    var lastPushDelta: PushDelta? = nil
+    
 
     func marble(at hex: HexCoordinate) -> MarbleModel? {
         marbles.first { $0.hex == hex }
