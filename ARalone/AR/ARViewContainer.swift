@@ -9,10 +9,17 @@ import RealityKit
 import ARKit
 
 struct ARViewContainer: UIViewRepresentable {
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    @Binding var uiState: GameUIState
+    let gameState: GameState
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(gameState: gameState)
+    }
+
 
     func makeUIView(context: Context) -> ARView {
         let arView = ARView(frame: .zero)
+        arView.isUserInteractionEnabled = uiState != .menu
 
         // AR session config
         let config = ARWorldTrackingConfiguration()
@@ -39,16 +46,22 @@ struct ARViewContainer: UIViewRepresentable {
         arView.addGestureRecognizer(tap)
 
         context.coordinator.arView = arView
+        context.coordinator.uiState = $uiState
         return arView
     }
 
-    func updateUIView(_ uiView: ARView, context: Context) {}
+    func updateUIView(_ uiView: ARView, context: Context) {
+        uiView.isUserInteractionEnabled = uiState != .menu
+    }
 
     final class Coordinator: NSObject {
         weak var arView: ARView?
         var boardAnchor: AnchorEntity?
-        
-        let gameState = GameState()
+        let gameState: GameState
+        init(gameState: GameState) {
+                self.gameState = gameState
+            }
+        var uiState: Binding<GameUIState>?
 
         // selection state
         var selectedMarble: ModelEntity?
@@ -111,6 +124,8 @@ struct ARViewContainer: UIViewRepresentable {
             boardAnchor = anchor
             
             updateBoardTexture(config: config)
+            uiState?.wrappedValue = .playing
+
         }
     }
 }

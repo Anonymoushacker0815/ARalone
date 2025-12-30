@@ -4,17 +4,19 @@
 //
 //  Created by lukas on 17.12.25.
 //
+import Foundation
+import Combine
 
-final class GameState {
+final class GameState: ObservableObject {
     
     struct PushDelta {
             var removedHex: HexCoordinate? = nil
             var movedDefender: (from: HexCoordinate, to: HexCoordinate, player: Player)? = nil
         }
     
-    var currentPlayer: Player = .red
-    var marbles: [MarbleModel] = []
-    var claimedHexes: [HexCoordinate: Player] = [:]
+    @Published var currentPlayer: Player = .red
+    @Published var marbles: [MarbleModel] = []
+    @Published var claimedHexes: [HexCoordinate: Player] = [:]
     var lastPushDelta: PushDelta? = nil
     
 
