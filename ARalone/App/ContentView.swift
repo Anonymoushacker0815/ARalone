@@ -41,7 +41,16 @@ struct ContentView: View {
             }
 
             if uiState == .menu {
-                MainMenuView(uiState: $uiState)
+                MainMenuView(
+                    uiState: $uiState,
+                    hasStarted: gameState.hasStarted,
+                    onStartOrRestart: {
+                        ARViewContainer.Coordinator.shared?.restartGame()
+                    },
+                    onReplaceBoard: {
+                        ARViewContainer.Coordinator.shared?.replaceBoard()
+                    }
+                )
             }
 
             if uiState == .rules {
@@ -52,40 +61,6 @@ struct ContentView: View {
 }
 
 
-struct MainMenuView: View {
-
-    @Binding var uiState: GameUIState
-
-    var body: some View {
-        VStack(spacing: 24) {
-
-            Text("ARalone")
-                .font(.largeTitle.bold())
-
-            VStack(spacing: 12) {
-
-                Button {
-                    uiState = .placingBoard
-                } label: {
-                    Label("Start Game", systemImage: "play.fill")
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    uiState = .rules
-                } label: {
-                    Label("Rules", systemImage: "book.fill")
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-        .padding(32)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .shadow(radius: 30)
-        .padding()
-    }
-}
 
 struct RulesView: View {
 

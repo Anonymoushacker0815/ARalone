@@ -19,6 +19,9 @@ final class GameState: ObservableObject {
     @Published var claimedHexes: [HexCoordinate: Player] = [:]
     var lastPushDelta: PushDelta? = nil
     
+    var hasStarted: Bool {
+        !marbles.isEmpty
+    }
 
     func marble(at hex: HexCoordinate) -> MarbleModel? {
         marbles.first { $0.hex == hex }

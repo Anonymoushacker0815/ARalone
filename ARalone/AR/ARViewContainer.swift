@@ -18,6 +18,7 @@ struct ARViewContainer: UIViewRepresentable {
 
 
     func makeUIView(context: Context) -> ARView {
+        Coordinator.shared = context.coordinator
         let arView = ARView(frame: .zero)
         arView.isUserInteractionEnabled = uiState != .menu
 
@@ -62,6 +63,7 @@ struct ARViewContainer: UIViewRepresentable {
                 self.gameState = gameState
             }
         var uiState: Binding<GameUIState>?
+        static weak var shared: Coordinator?
 
         // selection state
         var selectedMarble: ModelEntity?
@@ -78,22 +80,36 @@ struct ARViewContainer: UIViewRepresentable {
                          alignment: .horizontal)
                 .first
             else { return }
-
+            
             let config = BoardConfig()
             let anchor = AnchorEntity(world: result.worldTransform)
+            // If this is the first board placement → initialize game
+            if gameState.marbles.isEmpty {
+                setupNewGame(config: config)
+            }
+            // Create board
+            let board = BoardRenderer.makeBoardEntity(config: config)
+            anchor.addChild(board)
+            self.boardEntity = board
+            
+            // Render marbles & hex colors from state
+            renderBoardFromGameState(
+                anchor: anchor,
+                config: config
+            )
 
-            // 🔴 IMPORTANT: clear any previous state (safety)
-            gameState.marbles.removeAll()
-            gameState.claimedHexes.removeAll()
-            gameState.currentPlayer = .red
+            arView.scene.addAnchor(anchor)
+            boardAnchor = anchor
 
-            // Spawn red marbles
-            for hex in startingHexes(for: .red, config: config) {
-                let model = MarbleModel(player: .red, hex: hex)
-                gameState.marbles.append(model)
-                
-                gameState.claimedHexes[hex] = .red
-
+            updateBoardTexture(config: config)
+            uiState?.wrappedValue = .playing
+        }
+        func renderBoardFromGameState(
+            anchor: AnchorEntity,
+            config: BoardConfig
+        ) {
+            // Spawn marbles
+            for model in gameState.marbles {
                 _ = BoardRenderer.spawnMarble(
                     model: model,
                     config: config,
@@ -101,31 +117,70 @@ struct ARViewContainer: UIViewRepresentable {
                 )
             }
 
+            // Reapply claimed hex colors
+            updateBoardTexture(config: config)
+        }
+        func resetGame() {
+            gameState.marbles.removeAll()
+            gameState.claimedHexes.removeAll()
+            gameState.currentPlayer = .red
+            gameState.lastPushDelta = nil
+        }
+        func setupNewGame(config: BoardConfig) {
+            gameState.marbles.removeAll()
+            gameState.claimedHexes.removeAll()
+            gameState.currentPlayer = .red
+            gameState.lastPushDelta = nil
+
+            // Spawn red marbles
+            for hex in startingHexes(for: .red, config: config) {
+                let model = MarbleModel(player: .red, hex: hex)
+                gameState.marbles.append(model)
+                gameState.claimedHexes[hex] = .red
+            }
+
             // Spawn blue marbles
             for hex in startingHexes(for: .blue, config: config) {
                 let model = MarbleModel(player: .blue, hex: hex)
                 gameState.marbles.append(model)
-                
                 gameState.claimedHexes[hex] = .blue
-                
-               _ = BoardRenderer.spawnMarble(
-                    model: model,
-                    config: config,
-                    parent: anchor
-                )
+            }
+        }
+
+        func replaceBoard() {
+            guard let arView else { return }
+
+            // Remove old board anchor
+            if let anchor = boardAnchor {
+                arView.scene.removeAnchor(anchor)
             }
 
-            let board = BoardRenderer.makeBoardEntity(config: config)
-            anchor.addChild(board)
+            boardAnchor = nil
+            boardEntity = nil
+            selectedMarble = nil
+            originalMaterial = nil
 
-            self.boardEntity = board
+            // Go back to placement mode
+            uiState?.wrappedValue = .placingBoard
+        }
+        func restartGame() {
+            guard let arView else { return }
 
-            arView.scene.addAnchor(anchor)
-            boardAnchor = anchor
-            
-            updateBoardTexture(config: config)
-            uiState?.wrappedValue = .playing
+            if let anchor = boardAnchor {
+                arView.scene.removeAnchor(anchor)
+            }
 
+            boardAnchor = nil
+            boardEntity = nil
+            selectedMarble = nil
+            originalMaterial = nil
+
+            gameState.marbles.removeAll()
+            gameState.claimedHexes.removeAll()
+            gameState.currentPlayer = .red
+            gameState.lastPushDelta = nil
+
+            uiState?.wrappedValue = .placingBoard
         }
     }
 }
