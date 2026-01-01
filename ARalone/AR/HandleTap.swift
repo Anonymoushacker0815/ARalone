@@ -166,10 +166,17 @@ extension ARViewContainer.Coordinator {
 
         let radius = BoardRenderer.marbleRadiusMeters(config: config)
 
-        selected.position = SIMD3<Float>(
+        let startPos = selected.position
+        let endPos = SIMD3<Float>(
             centerXZ.x,
             radius + 0.001,
             centerXZ.y
+        )
+
+        rollMarble(
+            selected,
+            from: startPos,
+            to: endPos
         )
 
         selected.components.set(
@@ -191,7 +198,19 @@ extension ARViewContainer.Coordinator {
             else { continue }
 
             if comp.q == hex.q && comp.r == hex.r {
-                marble.removeFromParent()
+                let offBoardDirection = SIMD3<Float>(0, 0, 1)
+                            let endPos = marble.position + offBoardDirection * 0.15
+
+                            rollMarble(
+                                marble,
+                                from: marble.position,
+                                to: endPos,
+                                duration: 0.3
+                            )
+
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                marble.removeFromParent()
+                            }
                 return
             }
         }
@@ -251,10 +270,17 @@ extension ARViewContainer.Coordinator {
 
                 let radius = BoardRenderer.marbleRadiusMeters(config: config)
 
-                marble.position = SIMD3<Float>(
+                let startPos = marble.position
+                let endPos = SIMD3<Float>(
                     centerXZ.x,
                     radius + 0.001,
                     centerXZ.y
+                )
+
+                rollMarble(
+                    marble,
+                    from: startPos,
+                    to: endPos
                 )
 
                 marble.components.set(

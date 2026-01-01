@@ -224,6 +224,35 @@ struct ARViewContainer: UIViewRepresentable {
             
             uiState?.wrappedValue = .placingBoard
         }
+        func rollMarble(
+            _ marble: ModelEntity,
+            from start: SIMD3<Float>,
+            to end: SIMD3<Float>,
+            duration: TimeInterval = 0.25
+        ) {
+            let distance = simd_length(end - start)
+            guard distance > 0 else { return }
+
+            // Approximate rotation angle: distance / radius
+            let radius = simd_length(marble.visualBounds(relativeTo: marble).extents) * 0.5
+            let angle = distance / max(radius, 0.0001)
+
+            let direction = simd_normalize(end - start)
+            let rotationAxis = simd_normalize(SIMD3<Float>(-direction.z, 0, direction.x))
+
+            let rotation = simd_quatf(angle: angle, axis: rotationAxis)
+
+            var transform = marble.transform
+            transform.translation = end
+            transform.rotation = rotation * transform.rotation
+
+            marble.move(
+                to: transform,
+                relativeTo: marble.parent,
+                duration: duration,
+                timingFunction: .easeInOut
+            )
+        }
     }
 }
 
