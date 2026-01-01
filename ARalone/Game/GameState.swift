@@ -10,10 +10,12 @@ import Combine
 final class GameState: ObservableObject {
     
     struct PushDelta {
-            var removedHex: HexCoordinate? = nil
-            var movedDefender: (from: HexCoordinate, to: HexCoordinate, player: Player)? = nil
-        }
-    
+        var movedMarble: (from: HexCoordinate, to: HexCoordinate, player: Player)
+        var removedMarble: (hex: HexCoordinate, player: Player)?
+        var movedDefender: (from: HexCoordinate, to: HexCoordinate, player: Player)?
+        var previousClaimedHexes: [HexCoordinate: Player]
+    }
+
     @Published var currentPlayer: Player = .red
     @Published var marbles: [MarbleModel] = []
     @Published var claimedHexes: [HexCoordinate: Player] = [:]
@@ -59,5 +61,45 @@ final class GameState: ObservableObject {
         }
 
         return count
+    }
+    func undoLastMove() {
+        guard let delta = lastPushDelta else { return }
+
+        // 1️⃣ Restore claimed hex colors
+        claimedHexes = delta.previousClaimedHexes
+
+        // 2️⃣ Move attacker marble back
+        if let idx = marbles.firstIndex(where: {
+            $0.hex == delta.movedMarble.to &&
+            $0.player == delta.movedMarble.player
+        }) {
+            marbles[idx].hex = delta.movedMarble.from
+        }
+
+        // 3️⃣ Restore defender if it was pushed off board
+        if let removed = delta.removedMarble {
+            marbles.append(
+                MarbleModel(
+                    player: removed.player,
+                    hex: removed.hex
+                )
+            )
+        }
+
+        // 4️⃣ Restore defender if it was moved (blocker case)
+        if let moved = delta.movedDefender {
+            if let idx = marbles.firstIndex(where: {
+                $0.hex == moved.to &&
+                $0.player == moved.player
+            }) {
+                marbles[idx].hex = moved.from
+            }
+        }
+
+        // 5️⃣ Switch turn back
+        switchTurn()
+
+        // 6️⃣ Clear undo state (single-step undo)
+        lastPushDelta = nil
     }
 }

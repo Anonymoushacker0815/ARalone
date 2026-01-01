@@ -19,7 +19,6 @@ extension GameState {
     ) -> Bool {
 
         guard marbles.indices.contains(index) else { return false }
-        lastPushDelta = nil
         
         let from = marbles[index].hex
         let movingPlayer = marbles[index].player
@@ -45,6 +44,14 @@ extension GameState {
             )
         }
 
+        // 🔹 Capture undo snapshot BEFORE mutation
+        lastPushDelta = PushDelta(
+            movedMarble: (from: from, to: target, player: movingPlayer),
+            removedMarble: nil,
+            movedDefender: nil,
+            previousClaimedHexes: claimedHexes
+        )
+
         // 4. Move marble
         marbles[index].hex = target
 
@@ -62,9 +69,6 @@ extension GameState {
         target: HexCoordinate,
         config: BoardConfig
     ) -> Bool {
-
-        // Reset delta for this attempt
-        lastPushDelta = nil
 
         let attacker = marbles[attackerIndex]
         let defender = marbles[defenderIndex]
@@ -144,14 +148,24 @@ extension GameState {
                 return false
             }
 
-            // Move defender to stopHex (instead of removing)
-            marbles[defenderIndex].hex = stopHex
-
-            // Record delta for AR update
+            // 🔹 Capture undo snapshot BEFORE mutation
             lastPushDelta = PushDelta(
-                removedHex: nil,
-                movedDefender: (from: defender.hex, to: stopHex, player: defender.player)
+                movedMarble: (
+                    from: attacker.hex,
+                    to: target,
+                    player: attacker.player
+                ),
+                removedMarble: nil,
+                movedDefender: (
+                    from: defender.hex,
+                    to: stopHex,
+                    player: defender.player
+                ),
+                previousClaimedHexes: claimedHexes
             )
+
+            // Move defender to stopHex
+            marbles[defenderIndex].hex = stopHex
 
             // Move attacker into target
             marbles[attackerIndex].hex = target
@@ -164,10 +178,6 @@ extension GameState {
             return true
         }
 
-        // Otherwise: no allied blocker found -> defender is pushed off-board (removed)
-        // This matches your current behavior.
-        marbles.remove(at: defenderIndex)
-
         // Adjust attacker index if needed
         let adjustedAttackerIndex =
             defenderIndex < attackerIndex ? attackerIndex - 1 : attackerIndex
@@ -176,11 +186,23 @@ extension GameState {
         marbles[adjustedAttackerIndex].hex = target
         claimedHexes[target] = attacker.player
 
-        // Record delta for AR update
+        // 🔹 Capture undo snapshot BEFORE mutation
         lastPushDelta = PushDelta(
-            removedHex: defender.hex,
-            movedDefender: nil
+            movedMarble: (
+                from: attacker.hex,
+                to: target,
+                player: attacker.player
+            ),
+            removedMarble: (
+                hex: defender.hex,
+                player: defender.player
+            ),
+            movedDefender: nil,
+            previousClaimedHexes: claimedHexes
         )
+
+        // Remove defender
+        marbles.remove(at: defenderIndex)
 
         switchTurn()
         return true

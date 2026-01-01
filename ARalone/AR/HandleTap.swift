@@ -142,9 +142,13 @@ extension ARViewContainer.Coordinator {
         guard moved else { return }
 
         if let delta = gameState.lastPushDelta {
-            if let removedHex = delta.removedHex {
-                removeDefenderEntity(at: removedHex)
+
+            if let removed = delta.removedMarble {
+                // defender got pushed off board
+                removeDefenderEntity(at: removed.hex)
+
             } else if let moved = delta.movedDefender {
+                // defender rolled until blocker
                 moveDefenderEntity(
                     from: moved.from,
                     to: moved.to,

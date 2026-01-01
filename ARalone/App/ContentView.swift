@@ -24,12 +24,14 @@ struct ContentView: View {
             VStack {
                 if uiState != .menu && uiState != .rules {
                     TopHUDBar(
-                        canUndo: false,
-                        currentPlayer: uiState == .playing
-                            ? gameState.currentPlayer
-                            : nil,
-                        onUndo: { },
-                        onMenu: { uiState = .menu }
+                        canUndo: gameState.lastPushDelta != nil,
+                        currentPlayer: uiState == .playing ? gameState.currentPlayer : nil,
+                        onUndo: {
+                            ARViewContainer.Coordinator.shared?.undo()
+                        },
+                        onMenu: {
+                            uiState = .menu
+                        }
                     )
                 }
 

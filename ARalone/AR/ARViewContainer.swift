@@ -146,7 +146,45 @@ struct ARViewContainer: UIViewRepresentable {
                 gameState.claimedHexes[hex] = .blue
             }
         }
+        func undo() {
+            guard
+                let arView,
+                let oldAnchor = boardAnchor
+            else { return }
 
+            // 1️⃣ Undo logical game state
+            gameState.undoLastMove()
+
+            // 2️⃣ Save current board transform
+            let worldTransform = oldAnchor.transformMatrix(relativeTo: nil)
+
+            // 3️⃣ Remove old board
+            arView.scene.removeAnchor(oldAnchor)
+            boardAnchor = nil
+            boardEntity = nil
+            selectedMarble = nil
+            originalMaterial = nil
+
+            // 4️⃣ Create new anchor at same position
+            let newAnchor = AnchorEntity(world: worldTransform)
+
+            let config = BoardConfig()
+
+            // 5️⃣ Create board
+            let board = BoardRenderer.makeBoardEntity(config: config)
+            newAnchor.addChild(board)
+            boardEntity = board
+
+            // 6️⃣ Render marbles + hex colors from state
+            renderBoardFromGameState(
+                anchor: newAnchor,
+                config: config
+            )
+
+            // 7️⃣ Add back to scene
+            arView.scene.addAnchor(newAnchor)
+            boardAnchor = newAnchor
+        }
         func replaceBoard() {
             guard let arView else { return }
 
