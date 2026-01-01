@@ -61,6 +61,8 @@ extension GameState {
 
         // 6. Switch turn
         switchTurn()
+        
+        HapticManager.shared.trigger(.light)
 
         return true
     }
@@ -174,6 +176,8 @@ extension GameState {
 
             // Color the defender landing hex too (per your rule)
             claimedHexes[stopHex] = defender.player
+            
+            HapticManager.shared.trigger(.medium)
 
             switchTurn()
             return true
@@ -218,7 +222,7 @@ extension GameState {
         if winner != nil {
             return true
         }
-
+        HapticManager.shared.trigger(.heavy)
         switchTurn()
         return true
     }
