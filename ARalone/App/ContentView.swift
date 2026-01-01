@@ -41,6 +41,15 @@ struct ContentView: View {
             if uiState == .placingBoard {
                 PlacementPromptBanner()
             }
+            
+            if let winner = gameState.winner {
+                WinBanner(
+                    winner: winner,
+                    onDismiss: {
+                        uiState = .menu
+                    }
+                )
+            }
 
             if uiState == .menu {
                 MainMenuView(

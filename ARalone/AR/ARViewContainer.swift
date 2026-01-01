@@ -125,6 +125,8 @@ struct ARViewContainer: UIViewRepresentable {
             gameState.claimedHexes.removeAll()
             gameState.currentPlayer = .red
             gameState.lastPushDelta = nil
+            gameState.redCaptured = 0
+            gameState.blueCaptured = 0
         }
         func setupNewGame(config: BoardConfig) {
             gameState.marbles.removeAll()
@@ -217,7 +219,9 @@ struct ARViewContainer: UIViewRepresentable {
             gameState.claimedHexes.removeAll()
             gameState.currentPlayer = .red
             gameState.lastPushDelta = nil
-
+            gameState.redCaptured = 0
+            gameState.blueCaptured = 0
+            
             uiState?.wrappedValue = .placingBoard
         }
     }

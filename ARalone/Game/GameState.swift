@@ -19,10 +19,19 @@ final class GameState: ObservableObject {
     @Published var currentPlayer: Player = .red
     @Published var marbles: [MarbleModel] = []
     @Published var claimedHexes: [HexCoordinate: Player] = [:]
+    @Published var redCaptured: Int = 0
+    @Published var blueCaptured: Int = 0
+
     var lastPushDelta: PushDelta? = nil
     
     var hasStarted: Bool {
         !marbles.isEmpty
+    }
+    
+    var winner: Player? {
+        if redCaptured >= 3 { return .red }
+        if blueCaptured >= 3 { return .blue }
+        return nil
     }
 
     func marble(at hex: HexCoordinate) -> MarbleModel? {

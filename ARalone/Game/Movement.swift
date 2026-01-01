@@ -17,7 +17,8 @@ extension GameState {
         to target: HexCoordinate,
         config: BoardConfig
     ) -> Bool {
-
+        
+        guard winner == nil else { return false }
         guard marbles.indices.contains(index) else { return false }
         
         let from = marbles[index].hex
@@ -201,8 +202,22 @@ extension GameState {
             previousClaimedHexes: claimedHexes
         )
 
+        // Defender is pushed off-board
+        let removedDefender = marbles[defenderIndex]
+
+        // Increment capture count
+        if removedDefender.player == .red {
+            blueCaptured += 1
+        } else {
+            redCaptured += 1
+        }
+
         // Remove defender
         marbles.remove(at: defenderIndex)
+        
+        if winner != nil {
+            return true
+        }
 
         switchTurn()
         return true
